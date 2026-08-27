@@ -27,6 +27,7 @@ class AdminReportController extends Controller
             'mesLabel' => $monthDate->locale('es')->isoFormat('MMMM YYYY'),
             'estadisticas' => $this->reports->dashboardStats(),
             'informe' => $this->reports->monthlyTeamReport($monthDate),
+            'ausencias' => $this->reports->monthlyAbsences($monthDate),
         ]);
     }
 }

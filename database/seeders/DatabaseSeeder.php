@@ -80,6 +80,47 @@ class DatabaseSeeder extends Seeder
 
         $this->seedManagerEmployee($managerId, $empleadoId);
 
+        // Agregar 4 empleados más
+        $empleado2Id = $this->seedEmployeeWithSchedule([
+            'email' => 'juan@fichaje.test',
+            'name' => 'Juan García',
+            'role' => 'employee',
+            'employee_code' => 'EMP-002',
+            'hire_date' => '2025-06-01',
+        ], $companyId, $calendarId);
+
+        $this->seedManagerEmployee($managerId, $empleado2Id);
+
+        $empleado3Id = $this->seedEmployeeWithSchedule([
+            'email' => 'carlos@fichaje.test',
+            'name' => 'Carlos Martínez',
+            'role' => 'employee',
+            'employee_code' => 'EMP-003',
+            'hire_date' => '2025-09-10',
+        ], $companyId, $calendarId);
+
+        $this->seedManagerEmployee($managerId, $empleado3Id);
+
+        $empleado4Id = $this->seedEmployeeWithSchedule([
+            'email' => 'ana@fichaje.test',
+            'name' => 'Ana Fernández',
+            'role' => 'employee',
+            'employee_code' => 'EMP-004',
+            'hire_date' => '2026-02-20',
+        ], $companyId, $calendarId);
+
+        $this->seedManagerEmployee($managerId, $empleado4Id);
+
+        $empleado5Id = $this->seedEmployeeWithSchedule([
+            'email' => 'laura@fichaje.test',
+            'name' => 'Laura Ruiz',
+            'role' => 'employee',
+            'employee_code' => 'EMP-005',
+            'hire_date' => '2025-11-03',
+        ], $companyId, $calendarId);
+
+        $this->seedManagerEmployee($managerId, $empleado5Id);
+
         // 4. Add holidays to the WorkCalendar
         $holidayData = [
             ['name' => 'Día de la Comunidad', 'date' => '2026-04-25', 'type' => 'public'],

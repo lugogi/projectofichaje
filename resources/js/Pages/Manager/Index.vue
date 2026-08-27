@@ -34,6 +34,12 @@ const herramientas = [
             'Descargar fichajes de tu equipo en Excel, PDF o JSON por trabajador y mes.',
         ruta: 'manager.exports.index',
     },
+    {
+        titulo: 'Tarifas horas extra',
+        descripcion:
+            'Indicar cuánto se paga cada hora extra de los trabajadores de tu equipo.',
+        ruta: 'manager.overtime-rates.index',
+    },
 ];
 </script>
 

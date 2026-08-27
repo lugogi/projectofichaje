@@ -128,6 +128,9 @@ class AdminEmployeeController extends Controller
             'work_calendar_id' => ['required', 'string'],
             'manager_id' => ['nullable', 'string'],
             'employment_status' => ['nullable', 'integer', 'in:0,1'],
+            'position' => ['nullable', 'string', 'max:120'],
+            'department' => ['nullable', 'string', 'max:120'],
+            'overtime_rate' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
         ];
 
         if ($creating) {

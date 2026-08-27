@@ -42,6 +42,9 @@ const form = useForm({
     work_calendar_id:
         props.empleado?.work_calendar_id ?? props.calendarios[0]?.id ?? '',
     manager_id: props.empleado?.manager_id ?? '',
+    position: props.empleado?.position ?? '',
+    department: props.empleado?.department ?? '',
+    overtime_rate: props.empleado?.overtime_rate ?? '',
     password: '',
     employment_status: props.empleado?.employment_status ?? 1,
 });
@@ -62,6 +65,9 @@ watch(
         form.company_id = empleado.company_id ?? form.company_id;
         form.work_calendar_id = empleado.work_calendar_id ?? form.work_calendar_id;
         form.manager_id = empleado.manager_id ?? '';
+        form.position = empleado.position ?? '';
+        form.department = empleado.department ?? '';
+        form.overtime_rate = empleado.overtime_rate ?? '';
     },
 );
 
@@ -196,6 +202,43 @@ const enviar = () => {
                                     {{ cal.name }}
                                 </option>
                             </select>
+                        </div>
+
+                        <div>
+                            <InputLabel for="position" value="Puesto" />
+                            <TextInput
+                                id="position"
+                                v-model="form.position"
+                                class="mt-1 block w-full"
+                            />
+                            <InputError :message="form.errors.position" class="mt-1" />
+                        </div>
+
+                        <div>
+                            <InputLabel for="department" value="Departamento" />
+                            <TextInput
+                                id="department"
+                                v-model="form.department"
+                                class="mt-1 block w-full"
+                            />
+                            <InputError :message="form.errors.department" class="mt-1" />
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <InputLabel for="overtime_rate" value="Tarifa horas extra (€/h)" />
+                            <TextInput
+                                id="overtime_rate"
+                                v-model="form.overtime_rate"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                class="mt-1 block w-full"
+                            />
+                            <p class="mt-1 text-xs text-slate-500">
+                                Si ficha más horas que las del contrato, las extra se valoran a este precio. Lo puede
+                                ajustar también el encargado.
+                            </p>
+                            <InputError :message="form.errors.overtime_rate" class="mt-1" />
                         </div>
 
                         <div v-if="form.role === 'employee'" class="sm:col-span-2">

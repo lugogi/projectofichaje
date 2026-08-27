@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AbsenceRequest;
 use App\Models\Employee;
 use App\Models\WorkSession;
 use Carbon\Carbon;
@@ -87,6 +88,53 @@ class TeamReportService
         }
 
         return $rows;
+    }
+
+    /**
+     * Vacaciones y bajas laborales aprobadas del mes, para el resumen de laboral.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function monthlyAbsences(?Carbon $month = null): array
+    {
+        $month ??= now();
+        $start = $month->copy()->startOfMonth()->toDateString();
+        $end = $month->copy()->endOfMonth()->toDateString();
+
+        return AbsenceRequest::query()
+            ->with('employee')
+            ->where('status', AbsenceRequest::STATUS_APPROVED)
+            ->whereIn('type', [
+                AbsenceRequest::TYPE_VACATION,
+                AbsenceRequest::TYPE_MEDICAL_LEAVE,
+            ])
+            ->whereDate('start_date', '<=', $end)
+            ->whereDate('end_date', '>=', $start)
+            ->whereHas('employee', function ($query) {
+                $query->where('role', Employee::ROLE_EMPLOYEE)
+                    ->where('employment_status', 1)
+                    ->whereNull('deleted_at');
+            })
+            ->orderBy('start_date')
+            ->get()
+            ->map(function (AbsenceRequest $absence) {
+                $employee = $absence->employee;
+                $dias = $absence->start_date->diffInDays($absence->end_date) + 1;
+                $periodo = $absence->start_date->isSameDay($absence->end_date)
+                    ? $absence->start_date->format('d/m/Y')
+                    : $absence->start_date->format('d/m/Y').' – '.$absence->end_date->format('d/m/Y');
+
+                return [
+                    'nombre' => $employee?->name ?? '—',
+                    'periodo' => $periodo,
+                    'tipo_label' => $absence->type === AbsenceRequest::TYPE_MEDICAL_LEAVE
+                        ? 'Baja laboral'
+                        : 'Vacaciones',
+                    'dias' => (int) $dias,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function pendingReviewsCount(Employee $admin): int

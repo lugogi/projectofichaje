@@ -10,6 +10,7 @@ use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AttendanceExportController;
 use App\Http\Controllers\ManagerPanelController;
+use App\Http\Controllers\RecentClocksController;
 use App\Http\Controllers\SolicitudesReviewController;
 use App\Http\Controllers\TeamAbsenceController;
 use App\Http\Controllers\TeamExportController;
@@ -17,7 +18,9 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FichajeController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OvertimeRateController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\SolicitudesController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +53,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/api/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('/api/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
+    Route::get('/api/push/config', [PushSubscriptionController::class, 'config'])->name('push.config');
+    Route::post('/api/push/subscribe', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
+    Route::post('/api/push/unsubscribe', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+    Route::post('/api/push/test', [PushSubscriptionController::class, 'test'])->middleware('throttle:6,1')->name('push.test');
+
+    Route::get('/api/recent-clocks', [RecentClocksController::class, 'index'])->name('api.recent-clocks');
+
     Route::post('/api/correction-requests', [SolicitudesController::class, 'storeApi'])->name('correction-requests.store');
 
     Route::get('/solicitudes', [AbsenceRequestController::class, 'index'])->name('solicitudes.index');
@@ -67,7 +77,13 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/', [AdminPanelController::class, 'index'])->name('index');
         Route::get('/exportaciones', [TeamExportController::class, 'index'])->name('exports.index');
+        Route::post('/exportaciones/equipo', [TeamExportController::class, 'exportTeam'])->name('exports.team');
+        Route::post('/exportaciones/equipo/laboral', [TeamExportController::class, 'sendToLaboral'])->name('exports.laboral');
+        Route::get('/tarifas', [OvertimeRateController::class, 'index'])->name('overtime-rates.index');
+        Route::put('/tarifas', [OvertimeRateController::class, 'update'])->name('overtime-rates.update');
         Route::get('/solicitudes', [SolicitudesReviewController::class, 'index'])->name('solicitudes.index');
+        Route::patch('/solicitudes/alta/{employeeApplication}', [SolicitudesReviewController::class, 'reviewEmployeeApplication'])
+            ->name('solicitudes.application.review');
         Route::patch('/solicitudes/ausencia/{absenceRequest}', [SolicitudesReviewController::class, 'reviewAbsence'])
             ->name('solicitudes.absence.review');
         Route::patch('/solicitudes/correccion/{correctionRequest}', [SolicitudesReviewController::class, 'reviewCorrection'])
@@ -102,7 +118,13 @@ Route::middleware('auth')->group(function () {
     Route::prefix('encargado')->name('manager.')->middleware('manager')->group(function () {
         Route::get('/', [ManagerPanelController::class, 'index'])->name('index');
         Route::get('/exportaciones', [TeamExportController::class, 'index'])->name('exports.index');
+        Route::post('/exportaciones/equipo', [TeamExportController::class, 'exportTeam'])->name('exports.team');
+        Route::post('/exportaciones/equipo/laboral', [TeamExportController::class, 'sendToLaboral'])->name('exports.laboral');
+        Route::get('/tarifas', [OvertimeRateController::class, 'index'])->name('overtime-rates.index');
+        Route::put('/tarifas', [OvertimeRateController::class, 'update'])->name('overtime-rates.update');
         Route::get('/solicitudes', [SolicitudesReviewController::class, 'index'])->name('solicitudes.index');
+        Route::patch('/solicitudes/alta/{employeeApplication}', [SolicitudesReviewController::class, 'reviewEmployeeApplication'])
+            ->name('solicitudes.application.review');
         Route::patch('/solicitudes/ausencia/{absenceRequest}', [SolicitudesReviewController::class, 'reviewAbsence'])
             ->name('solicitudes.absence.review');
         Route::patch('/solicitudes/correccion/{correctionRequest}', [SolicitudesReviewController::class, 'reviewCorrection'])

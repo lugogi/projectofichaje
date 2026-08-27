@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ResolvesRolePanel;
 use App\Models\AbsenceRequest;
 use App\Models\CorrectionRequest;
+use App\Models\EmployeeApplication;
 use App\Services\AbsenceScheduleService;
 use App\Services\AbsenceValidationService;
 use App\Services\AuditLogService;
@@ -46,9 +47,51 @@ class SolicitudesReviewController extends Controller
                 in_array($filtro, ['pending', 'approved', 'rejected'], true) ? $filtro : null,
             ),
             'filtroEstado' => $filtro,
+            'reviewApplicationRoute' => $panel['review_application_route'],
             'reviewAbsenceRoute' => $panel['review_absence_route'],
             'reviewCorrectionRoute' => $panel['review_correction_route'],
         ]);
+    }
+
+    public function reviewEmployeeApplication(Request $request, EmployeeApplication $employeeApplication): RedirectResponse
+    {
+        $panel = $this->resolvePanel($request);
+        $actor = $request->user();
+
+        $validated = $request->validate([
+            'action' => ['required', 'in:approve,reject'],
+            'review_comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($employeeApplication->status !== EmployeeApplication::STATUS_PENDING) {
+            return back()->withErrors(['solicitud' => 'Esta solicitud ya fue revisada.']);
+        }
+
+        $status = $validated['action'] === 'approve'
+            ? EmployeeApplication::STATUS_APPROVED
+            : EmployeeApplication::STATUS_REJECTED;
+
+        $employeeApplication->update([
+            'status' => $status,
+            'reviewed_by' => $actor->id,
+            'review_comment' => $validated['review_comment'] ?? null,
+            'reviewed_at' => now(),
+        ]);
+
+        $reviewer = $actor;
+        $routeName = $actor->isAdmin() ? 'admin.solicitudes.index' : 'manager.solicitudes.index';
+
+        $this->notifications->notify(
+            $reviewer,
+            $status === EmployeeApplication::STATUS_APPROVED ? 'Solicitud de alta revisada' : 'Solicitud de alta revisada',
+            'Has ' . ($status === EmployeeApplication::STATUS_APPROVED ? 'aprobado' : 'rechazado') . ' la solicitud de ' . $employeeApplication->candidate_name . ' ' . $employeeApplication->candidate_surname . '.',
+            'employee_application_reviewed',
+            route($routeName),
+        );
+
+        return redirect()
+            ->route($panel['solicitudes_route'])
+            ->with('success', 'Solicitud de alta actualizada.');
     }
 
     public function reviewAbsence(Request $request, AbsenceRequest $absenceRequest): RedirectResponse

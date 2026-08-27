@@ -63,8 +63,13 @@ const herramientas = [
     {
         titulo: 'Exportar registros',
         descripcion:
-            'Descargar fichajes del equipo en Excel, PDF o JSON por trabajador y mes.',
+            'Descargar fichajes del equipo en Excel, PDF o JSON, o enviarlos a laboral.',
         ruta: 'admin.exports.index',
+    },
+    {
+        titulo: 'Tarifas horas extra',
+        descripcion: 'Precio por hora extra de cada trabajador para los informes de nómina.',
+        ruta: 'admin.overtime-rates.index',
     },
     {
         titulo: 'Registro de auditoría',

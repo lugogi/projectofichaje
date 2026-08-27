@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 trait ResolvesRolePanel
 {
     /**
-     * @return array{panel: string, home_route: string, exports_route: string, solicitudes_route: string, review_absence_route: string, review_correction_route: string}
+     * @return array{panel: string, home_route: string, exports_route: string, solicitudes_route: string, review_application_route: string, review_absence_route: string, review_correction_route: string}
      */
     protected function resolvePanel(Request $request): array
     {
@@ -22,6 +22,7 @@ trait ResolvesRolePanel
                 'home_route' => 'admin.index',
                 'exports_route' => 'admin.exports.index',
                 'solicitudes_route' => 'admin.solicitudes.index',
+                'review_application_route' => 'admin.solicitudes.application.review',
                 'review_absence_route' => 'admin.solicitudes.absence.review',
                 'review_correction_route' => 'admin.solicitudes.correction.review',
             ];
@@ -35,6 +36,7 @@ trait ResolvesRolePanel
                 'home_route' => 'manager.index',
                 'exports_route' => 'manager.exports.index',
                 'solicitudes_route' => 'manager.solicitudes.index',
+                'review_application_route' => 'manager.solicitudes.application.review',
                 'review_absence_route' => 'manager.solicitudes.absence.review',
                 'review_correction_route' => 'manager.solicitudes.correction.review',
             ];

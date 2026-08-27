@@ -20,6 +20,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    reviewApplicationRoute: {
+        type: String,
+        required: true,
+    },
     reviewAbsenceRoute: {
         type: String,
         required: true,
@@ -56,6 +60,8 @@ const solicitudesRoute = computed(() =>
         : 'manager.solicitudes.index',
 );
 
+const applicationRouteName = computed(() => props.reviewApplicationRoute);
+
 const filtros = [
     { value: null, label: 'Todas' },
     { value: 'pending', label: 'Pendientes' },
@@ -73,9 +79,11 @@ const aplicarFiltro = (estado) => {
 
 const revisar = (solicitud, action) => {
     const routeName =
-        solicitud.kind === 'absence'
-            ? props.reviewAbsenceRoute
-            : props.reviewCorrectionRoute;
+        solicitud.kind === 'application'
+            ? props.reviewApplicationRoute
+            : solicitud.kind === 'absence'
+                ? props.reviewAbsenceRoute
+                : props.reviewCorrectionRoute;
 
     procesando.value = solicitud.id;
 
@@ -101,6 +109,7 @@ const statusClasses = {
 };
 
 const kindBadgeClasses = {
+    application: 'bg-cyan-100 text-cyan-700',
     correction: 'bg-blue-100 text-blue-700',
     absence: 'bg-purple-100 text-purple-700',
 };
@@ -196,7 +205,13 @@ const kindBadgeClasses = {
                     </div>
 
                     <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                        <div>
+                        <div v-if="solicitud.kind === 'application'">
+                            <dt class="font-medium text-slate-500">Documento</dt>
+                            <dd class="text-slate-900">
+                                {{ solicitud.document_type.toUpperCase() }} · {{ solicitud.document_number }}
+                            </dd>
+                        </div>
+                        <div v-else>
                             <dt class="font-medium text-slate-500">Periodo</dt>
                             <dd class="text-slate-900">
                                 {{ solicitud.period_label }}
@@ -204,6 +219,20 @@ const kindBadgeClasses = {
                         </div>
                         <div
                             v-if="
+                                solicitud.kind === 'application' &&
+                                (solicitud.address || solicitud.phone)
+                            "
+                        >
+                            <dt class="font-medium text-slate-500">Contacto</dt>
+                            <dd class="text-slate-900">
+                                {{ solicitud.phone || 'Sin teléfono' }}
+                                <span v-if="solicitud.address" class="block text-slate-600">
+                                    {{ solicitud.address }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div
+                            v-else-if="
                                 solicitud.requested_clock_in ||
                                 solicitud.requested_clock_out
                             "
@@ -224,9 +253,21 @@ const kindBadgeClasses = {
                             </dd>
                         </div>
                         <div class="sm:col-span-2">
-                            <dt class="font-medium text-slate-500">Motivo</dt>
+                            <dt class="font-medium text-slate-500">
+                                {{ solicitud.kind === 'application' ? 'Datos del candidato' : 'Motivo' }}
+                            </dt>
                             <dd class="whitespace-pre-wrap text-slate-900">
-                                {{ solicitud.reason }}
+                                <template v-if="solicitud.kind === 'application'">
+                                    <span class="block">Nombre: {{ solicitud.employee_name }}</span>
+                                    <span class="block">Email: {{ solicitud.employee_email }}</span>
+                                    <span v-if="solicitud.social_security_number" class="block">
+                                        Seguridad Social: {{ solicitud.social_security_number }}
+                                    </span>
+                                    <span v-if="solicitud.reason" class="block mt-2">Comentarios: {{ solicitud.reason }}</span>
+                                </template>
+                                <template v-else>
+                                    {{ solicitud.reason }}
+                                </template>
                             </dd>
                         </div>
                         <div v-if="solicitud.review_note" class="sm:col-span-2">

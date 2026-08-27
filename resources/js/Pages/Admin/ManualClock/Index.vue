@@ -20,6 +20,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    fechaInicial: {
+        type: String,
+        default: null,
+    },
 });
 
 const page = usePage();
@@ -51,7 +55,7 @@ const defaultDatetime = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).p
 const form = useForm({
     employee_id: empleadoId.value,
     type: props.empleadoSeleccionado?.proxima_accion ?? 1,
-    recorded_at: defaultDatetime,
+    recorded_at: props.fechaInicial ?? defaultDatetime,
     reason: '',
     clock_zone_id: '',
 });

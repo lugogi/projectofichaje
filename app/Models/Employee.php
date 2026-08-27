@@ -25,6 +25,9 @@ class Employee extends Authenticatable
         'email',
         'password_hash',
         'role',
+        'position',
+        'department',
+        'overtime_rate',
         'notify_all_checkins',
         'employee_code',
         'employment_status',
@@ -49,6 +52,7 @@ class Employee extends Authenticatable
         'email_verified_at'     => 'datetime',
         'deleted_at'            => 'datetime',
         'notify_all_checkins'   => 'boolean',
+        'overtime_rate'         => 'decimal:2',
     ];
 
     protected static function booted(): void

@@ -68,10 +68,10 @@ const onCorrectionSubmitted = () => {
 </script>
 
 <template>
-    <div v-if="isOpen" class="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
-        <div class="max-h-[80vh] w-full overflow-y-auto rounded-t-lg bg-white p-4">
+    <div v-if="isOpen" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 sm:items-center">
+        <div class="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-lg sm:rounded-2xl">
             <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-bold">Detalles del día</h3>
+                <h3 class="text-lg font-bold text-slate-900">Tus fichajes</h3>
                 <button type="button" class="rounded-full p-2 hover:bg-gray-100" @click="emit('close')">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -112,6 +112,9 @@ const onCorrectionSubmitted = () => {
                     </div>
 
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                        <span v-if="bloque.entrada.zona">
+                            {{ bloque.entrada.zona }}
+                        </span>
                         <span v-if="bloque.entrada.clock_method">
                             Método: {{ bloque.entrada.clock_method }}
                         </span>

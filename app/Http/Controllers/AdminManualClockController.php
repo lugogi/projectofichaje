@@ -35,6 +35,12 @@ class AdminManualClockController extends Controller
             ? Employee::find($selectedId)
             : null;
 
+        $fecha = $request->query('fecha');
+        $fechaInicial = null;
+        if (is_string($fecha) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            $fechaInicial = $fecha.'T08:00';
+        }
+
         return Inertia::render('Admin/ManualClock/Index', [
             'empleados' => $empleados,
             'empleadoSeleccionado' => $selected ? [
@@ -45,6 +51,7 @@ class AdminManualClockController extends Controller
                 'estado' => $this->attendance->openSession($selected) ? 'trabajando' : 'fuera',
                 'registros_hoy' => $this->attendance->todayRecords($selected),
             ] : null,
+            'fechaInicial' => $fechaInicial,
             'salas' => ClockZone::query()->where('active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }

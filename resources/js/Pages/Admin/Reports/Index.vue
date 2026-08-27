@@ -21,6 +21,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    ausencias: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const mes = ref(props.mesActual);
@@ -180,6 +184,53 @@ const urlExport = (empleadoId, formato) => {
                                     class="px-4 py-8 text-center text-slate-500"
                                 >
                                     No hay empleados activos para mostrar.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="border-b border-slate-100 px-4 py-3">
+                        <h3 class="text-sm font-semibold text-slate-900">
+                            Vacaciones y bajas laborales
+                        </h3>
+                        <p class="mt-0.5 text-xs text-slate-500">
+                            Ausencias aprobadas del mes, para que laboral vea quién no ha estado trabajando.
+                        </p>
+                    </div>
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-600">
+                                    Nombre y apellidos
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-600">
+                                    Periodo
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-600">
+                                    Tipo
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="(ausencia, index) in ausencias" :key="index">
+                                <td class="px-4 py-3 font-medium text-slate-900">
+                                    {{ ausencia.nombre }}
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    {{ ausencia.periodo }}
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    {{ ausencia.tipo_label }}
+                                </td>
+                            </tr>
+                            <tr v-if="!ausencias.length">
+                                <td
+                                    colspan="3"
+                                    class="px-4 py-8 text-center text-slate-500"
+                                >
+                                    Ninguna vacación ni baja laboral aprobada en este mes.
                                 </td>
                             </tr>
                         </tbody>

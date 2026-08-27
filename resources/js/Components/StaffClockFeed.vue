@@ -6,11 +6,24 @@ const page = usePage();
 const entries = ref([]);
 const live = ref(false);
 
-let channelName = null;
+let pollInterval = null;
+
+const fetchRecentClocks = async () => {
+    try {
+        const response = await fetch('/api/recent-clocks');
+        if (response.ok) {
+            const data = await response.json();
+            entries.value = data;
+            live.value = true;
+        }
+    } catch (error) {
+        console.error('Error fetching recent clocks:', error);
+    }
+};
 
 onMounted(() => {
     const user = page.props.auth?.user;
-    if (!page.props.realtime?.enabled || !window.Echo || !user) {
+    if (!user) {
         return;
     }
 
@@ -18,21 +31,16 @@ onMounted(() => {
         return;
     }
 
-    channelName = 'fichaje.staff';
+    // Fetch immediately on mount
+    fetchRecentClocks();
 
-    window.Echo.private(channelName).listen('.clock.recorded', (payload) => {
-        entries.value.unshift(payload);
-        if (entries.value.length > 10) {
-            entries.value.length = 10;
-        }
-    });
-
-    live.value = true;
+    // Poll every 2 seconds
+    pollInterval = setInterval(fetchRecentClocks, 2000);
 });
 
 onUnmounted(() => {
-    if (channelName && window.Echo) {
-        window.Echo.leave(`private-${channelName}`);
+    if (pollInterval) {
+        clearInterval(pollInterval);
     }
 });
 </script>

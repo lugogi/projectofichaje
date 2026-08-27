@@ -2,8 +2,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DayDetailModal from './DayDetailModal.vue';
+import TeamDayDrawer from './TeamDayDrawer.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
+
+const props = defineProps({
+    esEquipo: { type: Boolean, default: false },
+    esAdmin: { type: Boolean, default: false },
+});
 
 const viewDate = ref(new Date());
 const clockedDatesSet = ref(new Set());
@@ -12,14 +18,20 @@ const workDaysSet = ref(new Set());
 const holidaysMap = ref(new Map());
 const absencesMap = ref(new Map());
 const teamAbsences = ref([]);
+const teamDays = ref({});
+const teamPlantilla = ref(0);
 const serverToday = ref(null);
 const loading = ref(false);
 const isMobile = ref(false);
+const vista = ref(props.esEquipo ? 'equipo' : 'yo');
 
 const isModalOpen = ref(false);
 const selectedDateStr = ref('');
 const dayDetails = ref([]);
 const dayAbsence = ref(null);
+const teamDay = ref(null);
+const teamDayOpen = ref(false);
+const teamDayLoading = ref(false);
 
 let visibilityHandler = null;
 
@@ -45,12 +57,15 @@ onUnmounted(() => {
 });
 
 const changeMonth = (offset) => {
-    const newDate = new Date(
+    viewDate.value = new Date(
         viewDate.value.getFullYear(),
         viewDate.value.getMonth() + offset,
         1,
     );
-    viewDate.value = newDate;
+};
+
+const irAHoy = () => {
+    viewDate.value = new Date();
 };
 
 const fetchEvents = async () => {
@@ -58,9 +73,9 @@ const fetchEvents = async () => {
     try {
         const month = viewDate.value.getMonth() + 1;
         const year = viewDate.value.getFullYear();
-        const response = await axios.get(
-            `/api/calendar-events?month=${month}&year=${year}`,
-        );
+        const response = await axios.get('/api/calendar-events', {
+            params: { month, year },
+        });
 
         clockedDatesSet.value = new Set(
             response.data.clocked_dates
@@ -76,6 +91,8 @@ const fetchEvents = async () => {
         );
         teamAbsences.value = response.data.team_absences || [];
         serverToday.value = response.data.today ?? todayStr();
+        teamDays.value = response.data.equipo?.dias ?? {};
+        teamPlantilla.value = response.data.equipo?.plantilla ?? 0;
     } catch (error) {
         console.error('Error fetching events:', error);
     } finally {
@@ -84,13 +101,30 @@ const fetchEvents = async () => {
 };
 
 const fetchDayEvents = async (dateStr) => {
+    selectedDateStr.value = dateStr;
+
+    if (vista.value === 'equipo' && props.esEquipo) {
+        teamDayLoading.value = true;
+        teamDayOpen.value = true;
+        try {
+            const response = await axios.get('/api/calendar-day-events', {
+                params: { date: dateStr },
+            });
+            teamDay.value = response.data.equipo ?? null;
+        } catch (error) {
+            console.error('Error fetching team day:', error);
+        } finally {
+            teamDayLoading.value = false;
+        }
+        return;
+    }
+
     try {
-        const response = await axios.get(
-            `/api/calendar-day-events?date=${dateStr}`,
-        );
-        dayDetails.value = response.data.records ?? response.data;
+        const response = await axios.get('/api/calendar-day-events', {
+            params: { date: dateStr },
+        });
+        dayDetails.value = response.data.records ?? [];
         dayAbsence.value = response.data.absence ?? null;
-        selectedDateStr.value = dateStr;
         isModalOpen.value = true;
     } catch (error) {
         console.error('Error fetching day events:', error);
@@ -156,9 +190,11 @@ const isMissed = (dateStr) => missedDatesSet.value.has(dateStr);
 const isHoliday = (dateStr) => holidaysMap.value.has(dateStr);
 const isAbsence = (dateStr) => absencesMap.value.has(dateStr);
 const isToday = (dateStr) => dateStr === todayStr();
+const esVistaEquipo = computed(() => vista.value === 'equipo' && props.esEquipo);
 
 const getHolidayName = (dateStr) => holidaysMap.value.get(dateStr) || null;
 const getAbsenceLabel = (dateStr) => absencesMap.value.get(dateStr)?.label || null;
+const teamStats = (dateStr) => teamDays.value[dateStr] ?? null;
 
 const absenceBadgeClass = (dateStr) => {
     const type = absencesMap.value.get(dateStr)?.type;
@@ -167,9 +203,6 @@ const absenceBadgeClass = (dateStr) => {
     return 'bg-sky-100 text-sky-800';
 };
 
-/**
- * clocked | missed | pending-today | work-future | off
- */
 const attendanceStatus = (dateStr) => {
     if (isAbsence(dateStr) || isHoliday(dateStr) || !isWorkDay(dateStr)) {
         return 'off';
@@ -180,28 +213,56 @@ const attendanceStatus = (dateStr) => {
     return 'work-future';
 };
 
+const teamStatus = (dateStr) => {
+    const d = teamStats(dateStr);
+    if (!d || d.laborables === 0) return 'off';
+    if (d.sin_fichar > 0) return 'alert';
+    if (d.en_curso > 0) return 'live';
+    if (d.fichados >= d.laborables) return 'ok';
+    return 'work';
+};
+
 const dayCellClass = (date) => {
     const dateStr = date.dateStr;
-    const status = attendanceStatus(dateStr);
     const classes = [
-        'min-h-[100px] p-2 border rounded-lg transition-all duration-200 cursor-pointer hover:border-blue-400',
+        'min-h-[108px] p-2 border rounded-xl transition-all duration-200 cursor-pointer hover:border-indigo-400 hover:shadow-sm',
     ];
 
     if (!date.isCurrentMonth) {
-        classes.push('bg-gray-100 text-gray-400 opacity-50 border-gray-200');
+        classes.push('bg-slate-50 text-slate-300 opacity-60 border-slate-100');
         return classes;
     }
 
     if (isToday(dateStr)) {
-        classes.push('ring-2 ring-blue-500/60');
+        classes.push('ring-2 ring-indigo-500/50');
     }
 
-    switch (status) {
+    if (esVistaEquipo.value) {
+        switch (teamStatus(dateStr)) {
+            case 'ok':
+                classes.push('border-emerald-400 bg-emerald-50');
+                break;
+            case 'alert':
+                classes.push('border-red-400 bg-red-50');
+                break;
+            case 'live':
+                classes.push('border-amber-400 bg-amber-50');
+                break;
+            case 'work':
+                classes.push('border-slate-200 bg-white');
+                break;
+            default:
+                classes.push('border-slate-200 bg-white');
+        }
+        return classes;
+    }
+
+    switch (attendanceStatus(dateStr)) {
         case 'clocked':
-            classes.push('border-emerald-500 bg-emerald-50 shadow-sm');
+            classes.push('border-emerald-500 bg-emerald-50');
             break;
         case 'missed':
-            classes.push('border-red-500 bg-red-50 shadow-sm');
+            classes.push('border-red-500 bg-red-50');
             break;
         case 'pending-today':
             classes.push('border-amber-400 bg-amber-50');
@@ -227,6 +288,14 @@ const attendanceBadge = (dateStr) => {
     return map[status] ?? null;
 };
 
+const ocupacion = (dateStr) => {
+    const d = teamStats(dateStr);
+    if (!d || d.laborables === 0) return 0;
+    return Math.min(100, Math.round((d.fichados / d.laborables) * 100));
+};
+
+const hoyEquipo = computed(() => teamStats(todayStr()));
+
 const handleDayClick = async (dateStr) => {
     await fetchDayEvents(dateStr);
 };
@@ -237,11 +306,48 @@ const handleDayClick = async (dateStr) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="text-xl font-semibold capitalize leading-tight text-gray-800">
-                    {{ monthNameFixed }}
-                </h2>
-                <div class="flex space-x-2">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-semibold capitalize leading-tight text-gray-800">
+                        {{ monthNameFixed }}
+                    </h2>
+                    <p class="mt-0.5 text-sm text-slate-500">
+                        {{
+                            esVistaEquipo
+                                ? 'Pulsa un día para ver las fichadas de toda la plantilla.'
+                                : 'Tu asistencia del mes. Pulsa un día para ver el detalle.'
+                        }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div
+                        v-if="esEquipo"
+                        class="mr-2 inline-flex rounded-full bg-slate-100 p-1 text-xs font-semibold"
+                    >
+                        <button
+                            type="button"
+                            class="rounded-full px-3 py-1"
+                            :class="vista === 'equipo' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                            @click="vista = 'equipo'"
+                        >
+                            Equipo
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-full px-3 py-1"
+                            :class="vista === 'yo' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                            @click="vista = 'yo'"
+                        >
+                            Yo
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow hover:bg-slate-50"
+                        @click="irAHoy"
+                    >
+                        Hoy
+                    </button>
                     <button
                         type="button"
                         class="rounded-full bg-white p-2 shadow transition hover:bg-gray-50"
@@ -264,25 +370,68 @@ const handleDayClick = async (dateStr) => {
             </div>
         </template>
 
-        <div class="py-12">
-            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-                <div class="overflow-hidden bg-white p-4 shadow-sm sm:rounded-lg md:p-8">
+        <div class="py-8">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div
+                    v-if="esVistaEquipo && hoyEquipo"
+                    class="mb-4 grid gap-3 sm:grid-cols-4"
+                >
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                        <p class="text-xs text-slate-500">Plantilla</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900">{{ teamPlantilla }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <p class="text-xs text-emerald-700">Fichados hoy</p>
+                        <p class="mt-1 text-2xl font-semibold text-emerald-900">
+                            {{ hoyEquipo.fichados }}/{{ hoyEquipo.laborables }}
+                        </p>
+                    </div>
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p class="text-xs text-amber-700">En curso</p>
+                        <p class="mt-1 text-2xl font-semibold text-amber-900">{{ hoyEquipo.en_curso }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                        <p class="text-xs text-red-700">Sin fichar hoy</p>
+                        <p class="mt-1 text-2xl font-semibold text-red-900">{{ hoyEquipo.sin_fichar }}</p>
+                    </div>
+                </div>
+
+                <div class="overflow-hidden bg-white p-4 shadow-sm sm:rounded-2xl md:p-8">
                     <div class="mb-4 flex flex-wrap gap-3 text-xs text-slate-600">
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 ring-1 ring-emerald-300">
-                            <span class="h-2 w-2 rounded-full bg-emerald-600"></span>
-                            Fichado
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 ring-1 ring-red-300">
-                            <span class="h-2 w-2 rounded-full bg-red-600"></span>
-                            Sin fichar (día pasado)
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 ring-1 ring-amber-300">
-                            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
-                            Hoy, aún sin fichar
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 ring-1 ring-indigo-200">
-                            Ausencia aprobada
-                        </span>
+                        <template v-if="esVistaEquipo">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 ring-1 ring-emerald-300">
+                                <span class="h-2 w-2 rounded-full bg-emerald-600"></span>
+                                Plantilla completa
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 ring-1 ring-red-300">
+                                <span class="h-2 w-2 rounded-full bg-red-600"></span>
+                                Faltan fichajes
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 ring-1 ring-amber-300">
+                                <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                                Alguien en curso
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 ring-1 ring-indigo-200">
+                                Ausencias en el día
+                            </span>
+                        </template>
+                        <template v-else>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 ring-1 ring-emerald-300">
+                                <span class="h-2 w-2 rounded-full bg-emerald-600"></span>
+                                Fichado
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 ring-1 ring-red-300">
+                                <span class="h-2 w-2 rounded-full bg-red-600"></span>
+                                Sin fichar (día pasado)
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 ring-1 ring-amber-300">
+                                <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                                Hoy, aún sin fichar
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 ring-1 ring-indigo-200">
+                                Ausencia aprobada
+                            </span>
+                        </template>
                     </div>
 
                     <div class="mb-4 grid grid-cols-7 gap-1">
@@ -306,25 +455,23 @@ const handleDayClick = async (dateStr) => {
                         v-else
                         class="grid grid-cols-7 gap-2"
                     >
-                        <div
+                        <button
                             v-for="(date, index) in calendarGrid"
                             :key="index"
+                            type="button"
                             :class="dayCellClass(date)"
+                            class="text-left"
                             @click="handleDayClick(date.dateStr)"
                         >
-                            <div
-                                :class="isMobile ? 'flex flex-col items-center' : ''"
-                            >
+                            <div :class="isMobile ? 'flex flex-col items-center' : ''">
                                 <span
                                     class="text-sm font-semibold"
-                                    :class="{ 'text-blue-600': date.isCurrentMonth }"
+                                    :class="date.isCurrentMonth ? 'text-slate-800' : ''"
                                 >
                                     {{ date.day }}
                                 </span>
 
-                                <div
-                                    class="mt-1 flex w-full flex-col items-start gap-1"
-                                >
+                                <div class="mt-1 flex w-full flex-col items-start gap-1">
                                     <div
                                         v-if="isHoliday(date.dateStr)"
                                         class="w-full truncate rounded bg-yellow-100 px-1 py-0.5 text-left text-[9px] font-semibold text-yellow-800"
@@ -332,29 +479,74 @@ const handleDayClick = async (dateStr) => {
                                         {{ getHolidayName(date.dateStr) }}
                                     </div>
 
-                                    <div
-                                        v-if="isAbsence(date.dateStr)"
-                                        class="w-full truncate rounded px-1 py-0.5 text-left text-[9px] font-semibold"
-                                        :class="absenceBadgeClass(date.dateStr)"
-                                    >
-                                        {{ getAbsenceLabel(date.dateStr) }}
-                                    </div>
+                                    <template v-if="esVistaEquipo && date.isCurrentMonth">
+                                        <template v-if="teamStats(date.dateStr)?.laborables">
+                                            <div class="w-full">
+                                                <div class="mb-0.5 flex justify-between text-[10px] font-semibold text-slate-600">
+                                                    <span>
+                                                        {{ teamStats(date.dateStr).fichados }}/{{
+                                                            teamStats(date.dateStr).laborables
+                                                        }}
+                                                    </span>
+                                                    <span v-if="teamStats(date.dateStr).sin_fichar">
+                                                        {{ teamStats(date.dateStr).sin_fichar }} sin
+                                                    </span>
+                                                </div>
+                                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                                                    <div
+                                                        class="h-full rounded-full"
+                                                        :class="
+                                                            teamStatus(date.dateStr) === 'alert'
+                                                                ? 'bg-red-500'
+                                                                : teamStatus(date.dateStr) === 'live'
+                                                                  ? 'bg-amber-500'
+                                                                  : 'bg-emerald-500'
+                                                        "
+                                                        :style="{ width: ocupacion(date.dateStr) + '%' }"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                <span
+                                                    v-if="teamStats(date.dateStr).en_curso"
+                                                    class="rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-800"
+                                                >
+                                                    {{ teamStats(date.dateStr).en_curso }} en curso
+                                                </span>
+                                                <span
+                                                    v-if="teamStats(date.dateStr).ausentes"
+                                                    class="rounded bg-indigo-100 px-1 text-[9px] font-semibold text-indigo-800"
+                                                >
+                                                    {{ teamStats(date.dateStr).ausentes }} aus.
+                                                </span>
+                                            </div>
+                                        </template>
+                                    </template>
 
-                                    <div
-                                        v-if="attendanceBadge(date.dateStr)"
-                                        class="w-full truncate rounded px-1.5 py-0.5 text-left text-[9px] font-bold"
-                                        :class="attendanceBadge(date.dateStr).class"
-                                    >
-                                        {{ attendanceBadge(date.dateStr).text }}
-                                    </div>
+                                    <template v-else>
+                                        <div
+                                            v-if="isAbsence(date.dateStr)"
+                                            class="w-full truncate rounded px-1 py-0.5 text-left text-[9px] font-semibold"
+                                            :class="absenceBadgeClass(date.dateStr)"
+                                        >
+                                            {{ getAbsenceLabel(date.dateStr) }}
+                                        </div>
+                                        <div
+                                            v-if="attendanceBadge(date.dateStr)"
+                                            class="w-full truncate rounded px-1.5 py-0.5 text-left text-[9px] font-bold"
+                                            :class="attendanceBadge(date.dateStr).class"
+                                        >
+                                            {{ attendanceBadge(date.dateStr).text }}
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
-                        </div>
+                        </button>
                     </div>
                 </div>
 
                 <div
-                    v-if="teamAbsences.length > 0"
+                    v-if="!esVistaEquipo && teamAbsences.length > 0"
                     class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -385,6 +577,14 @@ const handleDayClick = async (dateStr) => {
             :absence="dayAbsence"
             @close="isModalOpen = false"
             @refresh="fetchDayEvents(selectedDateStr); fetchEvents()"
+        />
+
+        <TeamDayDrawer
+            :is-open="teamDayOpen"
+            :loading="teamDayLoading"
+            :equipo="teamDay"
+            :es-admin="esAdmin"
+            @close="teamDayOpen = false"
         />
     </AuthenticatedLayout>
 </template>

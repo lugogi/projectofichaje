@@ -1,5 +1,6 @@
 <script setup>
-import { useNotificationFilters } from '@/Composables/useNotificationFilters';
+import PushNotificationToggle from '@/Components/PushNotificationToggle.vue';
+import { useNotificationFilters } from '@/composables/useNotificationFilters';
 import { Link } from '@inertiajs/vue3';
 import { computed, toRef } from 'vue';
 
@@ -59,6 +60,8 @@ const styleFor = (notification) =>
 
 <template>
     <div :class="mobile ? 'flex min-h-0 flex-1 flex-col' : ''">
+        <PushNotificationToggle class="shrink-0" />
+
         <div class="shrink-0 border-b border-gray-100 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
                 <div>

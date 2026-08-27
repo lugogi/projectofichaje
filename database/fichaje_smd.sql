@@ -269,6 +269,32 @@ CREATE TABLE `correction_requests` (
 );
 
 
+CREATE TABLE `employee_applications` (
+  `id` char(26) PRIMARY KEY,
+  `candidate_name` varchar(255),
+  `candidate_surname` varchar(255),
+  `address` varchar(255),
+  `phone` varchar(30),
+  `email` varchar(255),
+  `document_type` varchar(30),
+  `document_number` varchar(50),
+  `social_security_number` varchar(30) NULL DEFAULT NULL,
+  `notes` text NULL DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'pending',
+  `reviewed_by` char(26) NULL DEFAULT NULL,
+  `review_comment` text NULL DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL
+    DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL
+);
+
+CREATE INDEX `employee_applications_index_0` ON `employee_applications` (`status`, `created_at`);
+CREATE INDEX `employee_applications_index_1` ON `employee_applications` (`email`);
+
+
 CREATE TABLE `closing_periods` (
   `id` char(26) PRIMARY KEY,
   `name` varchar(100),

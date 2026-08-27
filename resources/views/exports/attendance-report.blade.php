@@ -24,10 +24,37 @@
 
     <table class="summary">
         <tr><td>Horas según contrato (mes)</td><td>{{ $report['contrato']['formato_esperado_mes'] }}</td></tr>
-        <tr><td>Horas exportadas</td><td>{{ $report['exportacion']['formato_incluido'] }}</td></tr>
-        <tr><td>Horas omitidas (extra)</td><td>{{ $report['exportacion']['formato_omitido'] }}</td></tr>
+        <tr><td>Horas trabajadas</td><td>{{ $report['perfil']['formato_fichado_real'] }}</td></tr>
+        <tr><td>Horas nómina</td><td>{{ $report['exportacion']['formato_incluido'] }}</td></tr>
+        <tr><td>Horas extra</td><td>{{ $report['horas_extra']['formato'] ?? '0h' }}</td></tr>
+        <tr><td>Importe hora extra</td><td>{{ $report['horas_extra']['tarifa_formato'] ?? 'Sin tarifa' }}</td></tr>
+        <tr><td>Importe horas extra</td><td>{{ $report['horas_extra']['importe_formato'] ?? 'Sin tarifa' }}</td></tr>
         <tr><td>Días laborables del mes</td><td>{{ $report['contrato']['dias_laborables'] }}</td></tr>
     </table>
+
+    <h2>Vacaciones y bajas laborales</h2>
+    @if (empty($report['ausencias']))
+        <p class="note">Ninguna vacación ni baja laboral en este mes.</p>
+    @else
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre y apellidos</th>
+                    <th>Periodo</th>
+                    <th>Tipo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($report['ausencias'] as $ausencia)
+                    <tr>
+                        <td>{{ $ausencia['nombre'] }}</td>
+                        <td>{{ $ausencia['periodo'] }}</td>
+                        <td>{{ $ausencia['tipo_label'] }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
 
     <h2>Jornadas incluidas</h2>
     <table>

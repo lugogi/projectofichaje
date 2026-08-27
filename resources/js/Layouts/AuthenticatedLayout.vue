@@ -22,6 +22,7 @@ const panelActivo = computed(() => {
     const adminRoutes = [
         `${prefijo}index`,
         `${prefijo}exports.index`,
+        `${prefijo}overtime-rates.index`,
         `${prefijo}solicitudes.index`,
         'admin.employees.index',
         'admin.employees.create',

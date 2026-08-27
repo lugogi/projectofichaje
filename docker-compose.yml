@@ -1,4 +1,24 @@
 services:
+  laravel:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: fichaje_laravel
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: fichaje_smd
+      DB_USERNAME: laravel
+      DB_PASSWORD: laravel
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - fichaje_network
+
   mysql:
     image: mysql:8.0
     container_name: fichaje_mysql
@@ -13,6 +33,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - fichaje_network
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
@@ -24,6 +46,14 @@ services:
       PMA_HOST: mysql
       PMA_USER: root
       PMA_PASSWORD: root
+    depends_on:
+      - mysql
+    networks:
+      - fichaje_network
 
 volumes:
   mysql_data:
+
+networks:
+  fichaje_network:
+    driver: bridge

@@ -188,7 +188,7 @@ class AbsenceRequestController extends Controller
     {
         abort_unless(
             app(SolicitudesReviewService::class)->canDownloadAttachment($request->user(), $storedFile)
-            && in_array($storedFile->entity_type, ['absence_request', 'correction_request']),
+            && in_array($storedFile->entity_type, ['absence_request', 'correction_request', 'employee_application']),
             403,
         );
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AbsenceRequest;
 use App\Models\Employee;
 use App\Models\TimeRecord;
 use App\Models\WorkSession;
@@ -54,6 +55,8 @@ class AttendanceExportService
                 'nombre' => $employee->name,
                 'email' => $employee->email,
                 'codigo' => $employee->employee_code,
+                'puesto' => $employee->position,
+                'departamento' => $employee->department,
             ],
             'contrato' => [
                 'horas_semanales' => $objetivo['horas_semanales_contrato'],
@@ -63,6 +66,8 @@ class AttendanceExportService
                 'dias_laborables' => $objetivo['dias_laborables'],
             ],
             'perfil' => $this->profileSection($realMinutes, $extraMinutes, $hideOvertime),
+            'horas_extra' => $this->overtimeSection($employee, $extraMinutes),
+            'ausencias' => $this->absencesSection($employee, $month),
             'exportacion' => [
                 'minutos_incluidos' => $exportMinutes,
                 'formato_incluido' => $this->attendance->formatDuration($exportMinutes),
@@ -194,6 +199,93 @@ class AttendanceExportService
             'zona' => $record->clockZone?->name,
             'nota' => null,
         ];
+    }
+
+    /**
+     * Horas extra y su valoración económica.
+     *
+     * Ejemplo: si el contrato son 176 h y ha fichado 180, se pagan 176 como
+     * horas de nómina y las 4 restantes se abonan a la tarifa del trabajador.
+     *
+     * @return array<string, mixed>
+     */
+    private function overtimeSection(Employee $employee, int $extraMinutes): array
+    {
+        $hours = round($extraMinutes / 60, 2);
+        $rate = $employee->overtime_rate !== null ? (float) $employee->overtime_rate : null;
+        $amount = $rate !== null ? round($hours * $rate, 2) : null;
+
+        return [
+            'minutos' => $extraMinutes,
+            'formato' => $this->attendance->formatDuration($extraMinutes),
+            'decimal' => $hours,
+            'tarifa' => $rate,
+            'tarifa_formato' => $rate !== null ? $this->money($rate) . '/h' : 'Sin tarifa',
+            'importe' => $amount,
+            'importe_formato' => $amount !== null ? $this->money($amount) : 'Sin tarifa',
+            'sin_tarifa' => $rate === null,
+        ];
+    }
+
+    /**
+     * Vacaciones y bajas laborales aprobadas que solapan el mes exportado.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function absencesSection(Employee $employee, Carbon $month): array
+    {
+        $start = $month->copy()->startOfMonth()->toDateString();
+        $end = $month->copy()->endOfMonth()->toDateString();
+
+        return AbsenceRequest::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', AbsenceRequest::STATUS_APPROVED)
+            ->whereIn('type', [
+                AbsenceRequest::TYPE_VACATION,
+                AbsenceRequest::TYPE_MEDICAL_LEAVE,
+            ])
+            ->whereDate('start_date', '<=', $end)
+            ->whereDate('end_date', '>=', $start)
+            ->orderBy('start_date')
+            ->get()
+            ->map(fn (AbsenceRequest $absence) => $this->mapAbsence($employee, $absence))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mapAbsence(Employee $employee, AbsenceRequest $absence): array
+    {
+        $dias = $absence->start_date->diffInDays($absence->end_date) + 1;
+
+        return [
+            'nombre' => $employee->name,
+            'codigo' => $employee->employee_code,
+            'tipo' => $absence->type,
+            'tipo_label' => $absence->type === AbsenceRequest::TYPE_MEDICAL_LEAVE
+                ? 'Baja laboral'
+                : 'Vacaciones',
+            'desde' => $absence->start_date->toDateString(),
+            'hasta' => $absence->end_date->toDateString(),
+            'periodo' => $this->formatPeriod($absence->start_date, $absence->end_date),
+            'dias' => (int) $dias,
+        ];
+    }
+
+    private function formatPeriod(Carbon $from, Carbon $to): string
+    {
+        if ($from->isSameDay($to)) {
+            return $from->format('d/m/Y');
+        }
+
+        return $from->format('d/m/Y').' – '.$to->format('d/m/Y');
+    }
+
+    private function money(float $value): string
+    {
+        return number_format($value, 2, ',', '.') . ' €';
     }
 
     /**

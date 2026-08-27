@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AbsenceRequest;
 use App\Models\CorrectionRequest;
 use App\Models\Employee;
+use App\Models\EmployeeApplication;
 use App\Models\StoredFile;
 use Illuminate\Support\Collection;
 
@@ -38,7 +39,14 @@ class SolicitudesReviewService
                 ->get(),
         );
 
-        $all = array_merge($corrections, $absences->all());
+        $applications = EmployeeApplication::query()
+            ->with('documents')
+            ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (EmployeeApplication $app) => $this->formatApplication($app));
+
+        $all = array_merge($corrections, $absences->all(), $applications->all());
         usort($all, fn ($a, $b) => strtotime($b['created_at_sort']) - strtotime($a['created_at_sort']));
 
         return $all;
@@ -63,7 +71,11 @@ class SolicitudesReviewService
             ->get()
             ->groupBy(fn (CorrectionRequest $r) => $r->created_at->format('Y-m-d H:i:s') . '|' . $r->reason);
 
-        return $absences + $correctionGroups->count();
+        $applications = EmployeeApplication::query()
+            ->where('status', EmployeeApplication::STATUS_PENDING)
+            ->count();
+
+        return $absences + $correctionGroups->count() + $applications;
     }
 
     public function reviewersFor(Employee $employee): Collection
@@ -108,6 +120,10 @@ class SolicitudesReviewService
                 && $this->access->canReviewFor($actor, $request->requester);
         }
 
+        if ($file->entity_type === 'employee_application') {
+            return $actor->isAdmin() || $actor->isManager();
+        }
+
         return false;
     }
 
@@ -133,6 +149,49 @@ class SolicitudesReviewService
         }
 
         return collect();
+    }
+
+    private function formatApplication(EmployeeApplication $application): array
+    {
+        $docs = $application->documents->map(fn (StoredFile $doc) => [
+            'id' => $doc->id,
+            'name' => $doc->file_name,
+            'url' => route('solicitudes.attachment', $doc->id),
+        ])->values()->all();
+
+        return [
+            'id' => $application->id,
+            'kind' => 'application',
+            'type_label' => 'Alta de trabajador',
+            'employee_name' => trim("{$application->candidate_name} {$application->candidate_surname}"),
+            'employee_email' => $application->email,
+            'address' => $application->address,
+            'phone' => $application->phone,
+            'document_type' => $application->document_type,
+            'document_number' => $application->document_number,
+            'has_social_security' => $application->has_social_security,
+            'social_security_number' => $application->social_security_number,
+            'work_permit_type' => $application->work_permit_type,
+            'work_permit_number' => $application->work_permit_number,
+            'work_permit_expiry' => $application->work_permit_expiry?->format('d/m/Y'),
+            'passport_number' => $application->passport_number,
+            'passport_expiry' => $application->passport_expiry?->format('d/m/Y'),
+            'gdpr_version' => $application->gdpr_version,
+            'position' => $application->position,
+            'department' => $application->department,
+            'start_date' => $application->start_date?->format('d/m/Y'),
+            'contract_type' => $application->contract_type,
+            'iban' => $application->iban ? substr($application->iban, 0, 8) . '****' . substr($application->iban, -4) : null,
+            'period_label' => $application->created_at->format('d/m/Y'),
+            'reason' => $application->notes,
+            'status' => $application->status,
+            'status_label' => $this->statusLabel($application->status),
+            'created_at' => $application->created_at->format('d/m/Y H:i'),
+            'created_at_sort' => $application->created_at->toIso8601String(),
+            'review_note' => $application->review_comment,
+            'attachment' => $docs[0] ?? null,
+            'attachments' => $docs,
+        ];
     }
 
     private function formatAbsence(AbsenceRequest $request): array
@@ -221,6 +280,8 @@ class SolicitudesReviewService
         return match ($status) {
             AbsenceRequest::STATUS_APPROVED => 'Aprobada',
             AbsenceRequest::STATUS_REJECTED => 'Rechazada',
+            EmployeeApplication::STATUS_APPROVED => 'Aprobada',
+            EmployeeApplication::STATUS_REJECTED => 'Rechazada',
             default => 'Pendiente',
         };
     }

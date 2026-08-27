@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Events\NotificationCreated;
+use App\Jobs\SendWebPushNotification;
 use App\Models\AppNotification;
 use App\Models\Employee;
 
 class NotificationService
 {
-    public function __construct(private RealtimeBroadcastService $realtime) {}
+    public function __construct(
+        private RealtimeBroadcastService $realtime,
+        private WebPushService $webPush,
+    ) {}
 
     public function notify(
         Employee|string $user,
@@ -28,8 +32,29 @@ class NotificationService
         ]);
 
         $this->realtime->send(new NotificationCreated($notification));
+        $this->pushToDevices($notification);
 
         return $notification;
+    }
+
+    /**
+     * Envía la notificación a los dispositivos del usuario (llega con la app cerrada).
+     * Se despacha tras la respuesta HTTP para no penalizar el tiempo de carga.
+     */
+    private function pushToDevices(AppNotification $notification): void
+    {
+        if (! $this->webPush->isConfigured()) {
+            return;
+        }
+
+        if (in_array($notification->event_type, config('webpush.muted_event_types', []), true)) {
+            return;
+        }
+
+        SendWebPushNotification::dispatchAfterResponse(
+            $notification->user_id,
+            $this->webPush->payloadFor($notification, $this->categoryFor($notification->event_type)),
+        );
     }
 
     public function unreadCount(string $userId): int

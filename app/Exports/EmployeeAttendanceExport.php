@@ -26,6 +26,7 @@ class EmployeeAttendanceExport implements FromArray, WithHeadings, WithTitle
     public function array(): array
     {
         $rows = [];
+        $extra = $this->report['horas_extra'] ?? [];
 
         foreach ($this->report['exportacion']['fichajes'] as $fichaje) {
             $rows[] = [
@@ -41,8 +42,30 @@ class EmployeeAttendanceExport implements FromArray, WithHeadings, WithTitle
         $rows[] = ['Resumen contractual', '', '', '', ''];
         $rows[] = ['Mes', $this->report['periodo']['mes_label'], '', '', ''];
         $rows[] = ['Horas según contrato', $this->report['contrato']['formato_esperado_mes'], '', '', ''];
-        $rows[] = ['Horas exportadas', $this->report['exportacion']['formato_incluido'], '', '', ''];
-        $rows[] = ['Horas omitidas (extra)', $this->report['exportacion']['formato_omitido'], '', '', ''];
+        $rows[] = ['Horas trabajadas', $this->report['perfil']['formato_fichado_real'], '', '', ''];
+        $rows[] = ['Horas nómina', $this->report['exportacion']['formato_incluido'], '', '', ''];
+        $rows[] = ['Horas extra', $extra['formato'] ?? '0h', '', '', ''];
+        $rows[] = ['Importe hora extra', $extra['tarifa_formato'] ?? 'Sin tarifa', '', '', ''];
+        $rows[] = ['Importe horas extra', $extra['importe_formato'] ?? 'Sin tarifa', '', '', ''];
+
+        $ausencias = $this->report['ausencias'] ?? [];
+        $rows[] = ['', '', '', '', ''];
+        $rows[] = ['Vacaciones y bajas laborales', '', '', '', ''];
+
+        if ($ausencias === []) {
+            $rows[] = ['Ninguna vacación ni baja laboral en este mes.', '', '', '', ''];
+        } else {
+            $rows[] = ['Nombre y apellidos', 'Periodo', 'Tipo', '', ''];
+            foreach ($ausencias as $ausencia) {
+                $rows[] = [
+                    $ausencia['nombre'],
+                    $ausencia['periodo'],
+                    $ausencia['tipo_label'],
+                    '',
+                    '',
+                ];
+            }
+        }
 
         return $rows;
     }

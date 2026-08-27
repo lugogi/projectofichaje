@@ -13,6 +13,8 @@ class StoredFile extends Model
 
     public const ENTITY_CORRECTION_REQUEST = 'correction_request';
 
+    public $timestamps = false;
+
     protected $table = 'files';
 
     public $incrementing = false;

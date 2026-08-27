@@ -9,9 +9,19 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    // Registro público deshabilitado: altas solo vía panel de administración.
-    Route::get('register', fn () => abort(404));
-    Route::post('register', fn () => abort(404));
+    Route::get('darse-de-alta', [\App\Http\Controllers\Auth\EmployeeApplicationController::class, 'create'])
+        ->name('employee-application.create');
+
+    Route::post('darse-de-alta', [\App\Http\Controllers\Auth\EmployeeApplicationController::class, 'store'])
+        ->name('employee-application.store');
+
+    Route::post('darse-de-alta/otp/send', [\App\Http\Controllers\Auth\EmployeeApplicationOtpController::class, 'send'])
+        ->middleware('throttle:5,1')
+        ->name('employee-application.otp.send');
+
+    Route::post('darse-de-alta/otp/verify', [\App\Http\Controllers\Auth\EmployeeApplicationOtpController::class, 'verify'])
+        ->middleware('throttle:10,1')
+        ->name('employee-application.otp.verify');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
